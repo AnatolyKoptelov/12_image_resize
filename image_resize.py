@@ -118,7 +118,9 @@ def get_confiramation(height, width, result_height, result_width):
         ))
         confirmation = input('Are you sure? [y/N]')
         if confirmation != 'y':
-            sys.exit('Converting cancelled by user.')
+            return None
+        else:
+            return True
 
 
 if __name__ == '__main__':
@@ -141,12 +143,13 @@ if __name__ == '__main__':
         sys.exit(exit_text)
     image = PIL.Image.open(args.fname)
     height, width = image.size
-    get_confiramation(
+    if not get_confiramation(
         height=height,
         width=width,
         result_height=args.height,
         result_width=args.width,
-    )
+    ):
+        sys.exit('Converting cancelled by user.')
     result_height, result_width = get_new_sizes(
         height=height,
         width=width,
