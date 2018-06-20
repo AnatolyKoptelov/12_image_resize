@@ -118,7 +118,7 @@ def get_confiramation(height, width, result_height, result_width):
         ))
         confirmation = input('Are you sure? [y/N]')
         if confirmation != 'y':
-            return None
+            return False
         else:
             return True
 
