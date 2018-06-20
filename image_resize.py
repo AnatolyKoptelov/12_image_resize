@@ -49,41 +49,43 @@ def get_args(extensions):
     return parser.parse_args()
 
 
-def get_file_extension(fname):
+def get_extension(fname):
     return fname.split('.')[-1].lower()
 
 
-def check_args(args, extensions, get_file_extension):
-    if not os.path.isfile(args.fname):
-        return 1, '{} {} {}'.format(
+def check_args(args, extensions, get_extension):
+    checks = [
+        (not os.path.isfile(args.fname), 1, '{} {} {}'.format(
             'Image file',
             args.fname,
             'is not found',
-        )
-    if get_file_extension(args.fname) not in extensions:
-        return 2, '.{} {}'.format(
-            get_file_extension(args.fname),
+        )),
+        (get_extension(args.fname) not in extensions, 2, '.{} {}'.format(
+            get_extension(args.fname),
             'files are not supported',
-        )
-    if args.scale and (args.width or args.height):
-        return 3, '{}{}\n{}'.format(
+        )),
+        (args.scale and (args.width or args.height), 3, '{}{}\n{}'.format(
             'Cannot to use both resize methods: ',
             'scaling and resizing by side sizes',
             'Try to use one of them.',
-        )
+        )),
+    ]
     if args.output:
         extensions.append('pdf',)
-        if get_file_extension(args.output) not in extensions:
-            return 4, '.{} {}'.format(
-            get_file_extension(args.output),
-            'files are not supported',
-            )
         out_path = dirname(args.output) or dirname(args.fname) or os.getcwd()
-        if not os.access(out_path, os.W_OK):
-            return 5, '{} {}'.format(
+        checks.extend([
+            (get_extension(args.output) not in extensions, 4, '.{} {}'.format(
+                get_extension(args.output),
+                'files are not supported',
+            )),
+            (not os.access(out_path, os.W_OK), 5, '{} {}'.format(
                 'Your output path is incorrect or',
                 'permissions denied.',
-            )
+            )),
+         ])
+    for check, exit_code, exit_text in checks:
+        if check:
+            return exit_code, exit_text
     return 0, 'Args are correct'
 
 
@@ -98,12 +100,25 @@ def get_new_sizes(height, width, result_height, result_width, scale):
         return math.ceil(height*result_width/width), result_width
 
 
-def get_result_fname(input_fname, output_fname, result_height, result_width ):
+def get_result_fname(input_fname, output_fname, result_height, result_width):
     return output_fname or '{}__{}.{}'.format(
         input_fname[:input_fname.rfind('.')],
         'x'.join(map(str, (result_height, result_width))),
         input_fname.split('.')[-1],
     )
+
+
+def get_confiramation(height, width, result_height, result_width):
+    if result_height and result_width and (
+        height/result_height != width/result_width
+    ):
+        print('{} {}'.format(
+            'Warning! The source and result proportions of the sides',
+            'of the image do not match.',
+        ))
+        confirmation = input('Are you sure? [y/N]')
+        if confirmation != 'y':
+            sys.exit('Converting cancelled by user.')
 
 
 if __name__ == '__main__':
@@ -120,20 +135,18 @@ if __name__ == '__main__':
     exit_code, exit_text = check_args(
         args,
         extensions,
-        get_file_extension,
+        get_extension,
     )
     if exit_code:
         sys.exit(exit_text)
     image = PIL.Image.open(args.fname)
     height, width = image.size
-    if args.height and args.width and height/args.height != width/args.width:
-        print('{} {}'.format(
-            'Warning! The source and result proportions of the sides',
-            'of the image do not match.',
-        ))
-        confirmation = input('Are you sure? [y/N]')
-        if confirmation != 'y':
-            sys.exit('Converting cancelled by user.')
+    get_confiramation(
+        height=height,
+        width=width,
+        result_height=args.height,
+        result_width=args.width,
+    )
     result_height, result_width = get_new_sizes(
         height=height,
         width=width,
@@ -153,7 +166,7 @@ if __name__ == '__main__':
     except (TypeError, OSError):
         print('{} from {} to {}\n{}'.format(
             'Failed to convert',
-            get_file_extension(args.fname),
-            get_file_extension(args.output),
+            get_extension(args.fname),
+            get_extension(args.output),
             'Try to convert the image to a different format before!'
         ))
